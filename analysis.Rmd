@@ -1,7 +1,7 @@
 ---
 title: "Artificial Intelligence Opinion Survey"
 subtitle: "DATA 490 Independent Study"
-author: "Mentor: Dr. Nicholas Dietrich\nAadarsha Gopala Reddy, Darren Lo, Ethan Love, Jose Mancilla, Santo Sumo"
+author: "Mentor: Dr. Nicholas Dietrich\n\nAadarsha Gopala Reddy, Darren Lo, Ethan Love, Jose Mancilla, Santo Sumo"
 date: "April 20, 2023"
 output:
   pdf_document:
