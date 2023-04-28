@@ -1,7 +1,7 @@
 ---
 title: "Artificial Intelligence Opinion Survey"
 subtitle: "DATA 490 Independent Study"
-author: "Mentor: Dr. Nicholas Dietrich\n\nAadarsha Gopala Reddy, Darren Lo, Ethan Love, Jose Mancilla, Santo Sumo"
+author: "Mentor: Dr. Nicholas Dietrich\n\nAadarsha Gopala Reddy, Darren Lo,\n\nEthan Love, Jose Mancilla, Santo Sumo"
 date: "April 20, 2023"
 output:
   pdf_document:
@@ -16,7 +16,7 @@ output:
 
 # 1. Load Data
 
-```{r, message=FALSE, warning=FALSE}
+```{r}
 library(tidyverse)
 library(ggplot2)
 
@@ -30,63 +30,156 @@ qualtrics <- read.csv("qualtrics_data.csv")
 
 # 2. Data Cleaning
 
-```{r, message=FALSE, warning=FALSE}
+```{r combine-prolific-data}
 # Combine data into one data frame after mutating Age to be one data type
 edu <- edu %>% mutate(Age = as.character(Age))
 health <- health %>% mutate(Age = as.character(Age))
 retail <- retail %>% mutate(Age = as.character(Age))
 tech <- tech %>% mutate(Age = as.character(Age))
-
 combined <- bind_rows(edu, health, retail, tech)
+# export combined data to csv
+# write.csv(combined, "combined_non_qualtrics.csv")
+```
 
-# Keep only rows with United States as the Country of residence
-combined <- combined %>% filter("Country of residence" == "United States")
-# combined columns
-colnames(combined)
-
-# combine qualtrics and combined data using qualtrics data's ProlificID column and combined data's Participant id
+```{r add-filter-qualtrics-data}
+# combine qualtrics and combined data using qualtrics data's
+#     ProlificID column and combined data's Participant id
 combined <- left_join(qualtrics, combined, by = c("ProlificID" = "Participant.id"))
+# rename "Duration..in.seconds." column to "Duration"
+colnames(combined)[colnames(combined) == "Duration..in.seconds."] <- "Duration"
+# remove Age.x and keep only Age.y column and rename Age.y to Age
+combined <- combined %>%
+  select(-Age.x) %>%
+  rename(Age = Age.y)
+# remove Status.x and Status.y columns
+combined <- combined %>%
+  select(-Status.x) %>%
+  select(-Status.y)
+# remove Finished, Progress, UserLanguage, DistributionChannel,
+# Nationality, and Consent columns
+combined <- combined %>%
+  select(-Finished) %>%
+  select(-Progress) %>%
+  select(-UserLanguage) %>%
+  select(-DistributionChannel) %>%
+  select(-Nationality) %>%
+  select(-Consent)
+
+# remove rows where Submission.id is NA
+combined <- combined %>% filter(!is.na(Submission.id))
+# Keep only rows which say "United States" in "Country.of.residence" column
+combined <- combined %>% filter(combined$Country.of.residence == "United States")
+
+# export data to csv
+# write.csv(combined, "combined_qualtrics.csv")
+```
+
+``` {r keep-attentive-responses}
+# Keep only rows which say "Compose an email" in "Attention" column
+combined <- combined %>% filter(combined$Attention == "Compose an email")
+# remove Attention column
+combined <- combined %>% select(-Attention)
+# export data to csv
+# write.csv(combined, "combined_qualtrics_attentive.csv")
 ```
 
 # 3. Data Exploration
 
 The columns in the dataset are:
 
-- Submission id: Unique identifier for each submission
+- StartDate - Date and time survey was started
 
-- Participant id: Unique identifier for each participant
+- EndDate - Date and time survey was completed
 
-- Status: Status of the submission
+- IPAddress - IP address of participant
 
-- Started at: Time the survey was started
+- Duration - Duration of survey in seconds
 
-- Completed at: Time the survey was completed
+- RecordedDate - Date and time survey was recorded
 
-- Reviewed at: Time the survey was reviewed
+- ResponseId - Response ID
 
-- Archived at: Time the survey was archived
+- LocationLatitude - Participant's location latitude
 
-- Time taken: Time taken to complete the survey
+- LocationLongitude - Participant's location longitude
 
-- Completion code: Completion code for the survey
+- ProlificID - Identification of the response on Prolific
 
-- Total approvals: Total approvals for the survey
+- Gender - Gender of the participant
 
-- Employment-sector: Employment sector of the participant
+- Education - Education level of the participant
 
-- Age: Age of the participant
+- Salary - Salary of the participant
 
-- Sex: Sex of the participant
-- Ethnicity simplified: Ethnicity of the participant
+- AIKnowledge - Knowledge of AI of the participant
 
-- Country of birth: Birth country of the participant
+- UsedAI - Whether the participant has used AI
 
-- Country of residence: Residence country of the participant
+- TimeEnergy - How much time and energy AI has saved the participant
 
-- Nationality: Nationality of the participant
+- SimilarTasks - How much of the participant's tasks they think AI can do
 
-- Language: Language of the participant
+- EnhanceHurt - Whether the participant thinks AI can enhance or hurt their work efficiency.
 
-- Student status: Is participant a student?
+- Comments - Comments from the participant
 
-- Employment status: Is participant a student?
+- Submission.id - Submission ID
+
+- Started.at - Date and time survey was started
+
+- Completed.at - Date and time survey was completed
+
+- Reviewed.at - Date and time survey was reviewed
+
+- Archived.at - Date and time survey was archived
+
+- Time.taken - Duration of survey in seconds
+
+- Completion.code - Completion code
+
+- Total.approvals - Total number of approvals
+
+- Employment.sector - Employment sector
+
+- Age - Age of the participant
+
+- Sex - Sex of the participant
+
+- Ethnicity.simplified - Ethnicity of the participant
+
+- Country.of.birth - Country of birth of the participant
+
+- Country.of.residence - Country of residence of the participant
+
+- Language - Language of the participant
+
+- Student.status - Whether the participant is a student
+
+- Employment.status - Whether the participant is employed
+
+# 4. Data Analysis
+
+## 4.1. EnhanceHurt vs. Industry
+
+```{r enhancehurt-vs-industry}
+# Create a new data frame with only the columns we need
+enhancehurt_vs_industry <- combined %>%
+  select(EnhanceHurt, Employment.sector)
+
+colnames(enhancehurt_vs_industry)
+# Remove rows where Employment.sector is NA
+enhancehurt_vs_industry <- enhancehurt_vs_industry %>%
+  filter(!is.na(Employment.sector))
+# Remove rows where EnhanceHurt is NA
+enhancehurt_vs_industry <- enhancehurt_vs_industry %>%
+  filter(!is.na(EnhanceHurt))
+
+# Visualize using different histogram for each industry.
+# Show the number of respondents on each bar for each choice.
+ggplot(enhancehurt_vs_industry, aes(x = EnhanceHurt, fill = Employment.sector)) +
+  geom_bar(position = "dodge") +
+  geom_text(stat = "count", aes(label = ..count..), position = position_dodge(width = 1), vjust = -0.5) +
+  labs(title = "EnhanceHurt vs. Industry", x = "EnhanceHurt", y = "Number of Respondents") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(legend.position = "bottom")
+```
