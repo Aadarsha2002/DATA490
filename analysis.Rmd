@@ -20,11 +20,12 @@ output:
 library(tidyverse)
 library(ggplot2)
 
-# Load data
+# Load data. Top row is column name.
 edu <- read.csv("prolific_edu.csv")
 health <- read.csv("prolific_health.csv")
 retail <- read.csv("prolific_retail.csv")
 tech <- read.csv("prolific_tech.csv")
+qualtrics <- read.csv("qualtrics_data.csv")
 ```
 
 # 2. Data Cleaning
@@ -40,6 +41,11 @@ combined <- bind_rows(edu, health, retail, tech)
 
 # Keep only rows with United States as the Country of residence
 combined <- combined %>% filter("Country of residence" == "United States")
+# combined columns
+colnames(combined)
+
+# combine qualtrics and combined data using qualtrics data's ProlificID column and combined data's Participant id
+combined <- left_join(qualtrics, combined, by = c("ProlificID" = "Participant.id"))
 ```
 
 # 3. Data Exploration
