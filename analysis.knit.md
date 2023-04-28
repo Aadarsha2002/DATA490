@@ -16,8 +16,23 @@ output:
 
 # 1. Load Data
 
-```{r}
+
+```r
 library(tidyverse)
+```
+
+```
+## -- Attaching packages --------------------------------------- tidyverse 1.3.2 --
+## v ggplot2 3.4.1     v purrr   1.0.1
+## v tibble  3.1.8     v dplyr   1.1.0
+## v tidyr   1.3.0     v stringr 1.5.0
+## v readr   2.1.4     v forcats 1.0.0
+## -- Conflicts ------------------------------------------ tidyverse_conflicts() --
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()
+```
+
+```r
 library(ggplot2)
 
 # Load data. Top row is column name.
@@ -30,7 +45,8 @@ qualtrics <- read.csv("qualtrics_data.csv")
 
 # 2. Data Cleaning
 
-```{r combine-prolific-data}
+
+```r
 # Combine data into one data frame after mutating Age to be one data type
 edu <- edu %>% mutate(Age = as.character(Age))
 health <- health %>% mutate(Age = as.character(Age))
@@ -42,7 +58,8 @@ combined <- bind_rows(edu, health, retail, tech)
 # write.csv(combined, "combined_non_qualtrics.csv")
 ```
 
-```{r add-filter-qualtrics-data}
+
+```r
 # combine qualtrics and combined data using qualtrics data's
 #     ProlificID column and combined data's Participant id
 combined <- left_join(qualtrics, combined, by = c("ProlificID" = "Participant.id"))
@@ -84,7 +101,8 @@ combined$EnhanceHurt[combined$EnhanceHurt == "AI will detract from my work"] <- 
 # write.csv(combined, "combined_qualtrics.csv")
 ```
 
-``` {r keep-attentive-responses}
+
+```r
 # Keep only rows which say "Compose an email" in "Attention" column
 combined <- combined %>% filter(combined$Attention == "Compose an email")
 # remove Attention column
@@ -171,7 +189,8 @@ The columns in the dataset are:
 
 ## 4.1. EnhanceHurt vs. Industry (proportions)
 
-```{r enhancehurt-vs-industry}
+
+```r
 # Create a new data frame with only the columns we need
 enhancehurt_vs_industry <- combined %>% select(EnhanceHurt, Employment.sector)
 
@@ -185,7 +204,14 @@ enhancehurt_vs_industry <- enhancehurt_vs_industry %>%
   group_by(Employment.sector, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
+```
 
+```
+## `summarise()` has grouped output by 'Employment.sector'. You can override using
+## the `.groups` argument.
+```
+
+```r
 # Visualize using different histogram for each industry.
 # Show the number of respondents inside each bar.
 # make legend bottom. Wrap x axis labels without changing plot size.
@@ -212,9 +238,12 @@ enhancehurt_vs_industry_plot <- ggplot(enhancehurt_vs_industry, aes(
 enhancehurt_vs_industry_plot
 ```
 
+![](analysis_files/figure-latex/enhancehurt-vs-industry-1.pdf)<!-- --> 
+
 ## 4.2. EnhanceHurt vs. Education (proportions)
 
-```{r enhancehurt-vs-education}
+
+```r
 # Create a new data frame with only the columns we need
 enhancehurt_vs_education <- combined %>% select(EnhanceHurt, Education)
 
@@ -228,7 +257,14 @@ enhancehurt_vs_education <- enhancehurt_vs_education %>%
   group_by(Education, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
+```
 
+```
+## `summarise()` has grouped output by 'Education'. You can override using the
+## `.groups` argument.
+```
+
+```r
 # Visualize using different histogram for each education level.
 # Show the number of respondents on each bar.
 enhancehurt_vs_education_plot <- ggplot(enhancehurt_vs_education, aes(
@@ -252,9 +288,12 @@ enhancehurt_vs_education_plot <- ggplot(enhancehurt_vs_education, aes(
 enhancehurt_vs_education_plot
 ```
 
+![](analysis_files/figure-latex/enhancehurt-vs-education-1.pdf)<!-- --> 
+
 ## 4.3 EnhanceHurt vs. Age (proportions)
 
-```{r enhancehurt-vs-age}
+
+```r
 # Create a new data frame with only the columns we need
 enhancehurt_vs_age <- combined %>% select(EnhanceHurt, Age)
 # Remove the Ages which say "DATA_EXPIRED" and "923"
@@ -278,7 +317,14 @@ enhancehurt_vs_age <- enhancehurt_vs_age %>%
   group_by(Age, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
+```
 
+```
+## `summarise()` has grouped output by 'Age'. You can override using the `.groups`
+## argument.
+```
+
+```r
 # Visualize using different histogram for each age group.
 # Show the number of respondents on each bar.
 enhancehurt_vs_age_plot <- ggplot(enhancehurt_vs_age, aes(
@@ -301,3 +347,5 @@ enhancehurt_vs_age_plot <- ggplot(enhancehurt_vs_age, aes(
 
 enhancehurt_vs_age_plot
 ```
+
+![](analysis_files/figure-latex/enhancehurt-vs-age-1.pdf)<!-- --> 
