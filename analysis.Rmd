@@ -190,7 +190,28 @@ The columns in the dataset are:
 
 # 4. Data Analysis
 
-## 4.1. EnhanceHurt vs. Industry (proportions)
+## 4.1. Average amount of time to complete survey
+
+```{r avg-time}
+# Create a new data frame with only the columns we need
+avg_time <- combined %>% select(Duration)
+# Remove rows where Duration is NA
+avg_time <- avg_time %>% filter(!is.na(Duration))
+# Calculate the average time taken to complete the survey
+avg_time <- avg_time %>% summarise(avg_time = mean(Duration))
+# Convert to <x> minutes and <y> seconds
+avg_time$avg_time <- avg_time$avg_time / 60
+avg_time$avg_time <- paste0(
+  floor(avg_time$avg_time),
+  " minutes and ",
+  round((avg_time$avg_time - floor(avg_time$avg_time)) * 60),
+  " seconds"
+)
+# Print the average time taken to complete the survey
+avg_time
+```
+
+## 4.2. EnhanceHurt vs. Industry
 
 ```{r enhancehurt-vs-industry}
 # Create a new data frame with only the columns we need
@@ -244,7 +265,7 @@ enhancehurt_vs_industry_plot <- ggplot(
 enhancehurt_vs_industry_plot
 ```
 
-## 4.2. EnhanceHurt vs. Education (proportions)
+## 4.3. EnhanceHurt vs. Education
 
 ```{r enhancehurt-vs-education}
 # Create a new data frame with only the columns we need
@@ -292,7 +313,7 @@ enhancehurt_vs_education_plot <- ggplot(enhancehurt_vs_education, aes(
 enhancehurt_vs_education_plot
 ```
 
-## 4.3 EnhanceHurt vs. Age (proportions)
+## 4.4. EnhanceHurt vs. Age
 
 ```{r enhancehurt-vs-age}
 # Create a new data frame with only the columns we need
@@ -348,7 +369,7 @@ enhancehurt_vs_age_plot <- ggplot(enhancehurt_vs_age, aes(
     x = "Age Group",
     y = "Proportion of Respondents",
     fill = "Enhance or Hurt",
-    caption = "* Ages 79 and 80 were added to the group of ages 68-78"
+    caption = "*1 response from age 80 was added to the 68-78 age group"
   ) +
   ggtitle("Proportion of Respondents Who Think AI Can\n
   Enhance Their Work Efficiency by Age Group") +
@@ -358,7 +379,7 @@ enhancehurt_vs_age_plot <- ggplot(enhancehurt_vs_age, aes(
 enhancehurt_vs_age_plot
 ```
 
-## 4.4 EnhanceHurt vs. Salary (proportions)
+## 4.5. EnhanceHurt vs. Salary
 
 ```{r enhancehurt-vs-salary}
 # Create a new data frame with only the columns we need
@@ -408,4 +429,39 @@ enhancehurt_vs_salary_plot <- ggplot(enhancehurt_vs_salary, aes(
   theme(legend.position = "top")
 
 enhancehurt_vs_salary_plot
+```
+
+## 4.6. EnhanceHurt vs. Gender
+
+```{r enhancehurt-vs-gender}
+# Create a new data frame with only the columns we need
+enhancehurt_vs_gender <- combined %>% select(EnhanceHurt, Gender)
+```
+
+```{r enhancehurt-vs-gender-edit}
+# Remove rows where Gender is NA
+enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
+  filter(!is.na(Gender))
+# Remove rows where EnhanceHurt is NA
+enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
+  filter(!is.na(EnhanceHurt))
+
+table(enhancehurt_vs_gender$Gender)
+
+# remove rows where Gender is empty
+enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
+  filter(Gender != "Prefer to self-describe")
+
+# Create a new dataframe with the proportion of respondents who
+# think AI can enhance their work efficiency for each gender
+enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
+  group_by(Gender, EnhanceHurt) %>%
+  summarize(count = n()) %>%
+  mutate(prop = count / sum(count))
+```
+
+```{r enhancehurt-vs-gender-plot}
+# Visualize using different histogram for each gender.
+# Show the number of respondents on each bar.
+
 ```
