@@ -1,7 +1,7 @@
 ---
-title: "Artificial Intelligence Opinion Survey"
+title: "**Artificial Intelligence Opinion Survey**"
 subtitle: "DATA 490 Independent Study"
-author: "Mentor: Dr. Nicholas Dietrich\n\nAadarsha Gopala Reddy, Darren Lo,\n\nEthan Love, Jose Mancilla, Santo Sumo"
+author: "*Mentor:* Dr. Nicholas Dietrich\n\n *Researchers:* Aadarsha Gopala Reddy, Darren Lo,\n\nEthan Love, Jose Mancilla, Santo Sumo"
 date: "April 20, 2023"
 output:
   pdf_document:
@@ -16,7 +16,7 @@ output:
 
 # 1. Load Data
 
-```{r}
+```{r load-data, message = FALSE, warning = FALSE}
 library(tidyverse)
 library(ggplot2)
 
@@ -52,6 +52,10 @@ combined <- left_join(qualtrics, combined,
 colnames(combined)[
   colnames(combined) == "Duration..in.seconds."
 ] <- "Duration"
+# rename "Ethnicity.simplified" column to "Ethnicity"
+colnames(combined)[
+  colnames(combined) == "Ethnicity.simplified"
+] <- "Ethnicity"
 # remove Age.x and keep only Age.y column and rename Age.y to Age
 combined <- combined %>%
   select(-Age.x) %>%
@@ -77,6 +81,7 @@ combined <- combined %>%
 # Keep only rows which say "United States" in "Country.of.residence" column
 combined <- combined %>%
   filter(combined$Country.of.residence == "United States")
+
 # Replace all cells that say "Information Technology" and
 # "Science, Technology, Engineering & Mathematics" to "STEM/IT"
 # in Employment.sector column
@@ -87,7 +92,7 @@ combined$Employment.sector[
   combined$Employment.sector == "Science, Technology, Engineering & Mathematics"
 ] <- "STEM/IT"
 
-# change all cells in column EnhanceHurt that say
+# Replace all cells in column EnhanceHurt that say
 # "AI will neither enhance nor detract from my work" to "neither",
 # "AI will enhance my work" to "enhance", and
 # "AI will detract from my work" to "detract"
@@ -101,6 +106,28 @@ combined$EnhanceHurt[
   combined$EnhanceHurt == "AI will detract from my work"
 ] <- "detract"
 
+# Replace all cells in column TimeEnergy that say
+# "Save a lot of time" to "lot of time",
+# "Save little time" to "little time",
+# "Save no time" to "no time",
+# "Save some time" to "some time", and
+# "Neutral" to "neutral"
+combined$TimeEnergy[
+  combined$TimeEnergy == "Save a lot of time"
+] <- "lot of time"
+combined$TimeEnergy[
+  combined$TimeEnergy == "Save little time"
+] <- "little time"
+combined$TimeEnergy[
+  combined$TimeEnergy == "Save no time"
+] <- "no time"
+combined$TimeEnergy[
+  combined$TimeEnergy == "Save some time"
+] <- "some time"
+combined$TimeEnergy[
+  combined$TimeEnergy == "Neutral"
+] <- "neutral"
+
 # export data to csv
 # write.csv(combined, "combined_qualtrics.csv")
 ```
@@ -113,6 +140,7 @@ combined <- combined %>% select(-Attention)
 # export data to csv
 # write.csv(combined, "combined_qualtrics_attentive.csv")
 ```
+\newpage
 
 # 3. Data Exploration
 
@@ -176,7 +204,7 @@ The columns in the dataset are:
 
 - *Sex* - Sex of the participant
 
-- *Ethnicity.simplified* - Ethnicity of the participant
+- *Ethnicity* - Ethnicity of the participant
 
 - *Country.of.birth* - Country of birth of the participant
 
@@ -187,6 +215,7 @@ The columns in the dataset are:
 - *Student.status* - Whether the participant is a student
 
 - *Employment.status* - Whether the participant is employed
+\newpage
 
 # 4. Data Analysis
 
@@ -211,40 +240,45 @@ avg_time$avg_time <- paste0(
 avg_time
 ```
 
-## 4.2. EnhanceHurt vs. Industry
+The average time taken to complete the survey is 2 minutes and 13 seconds. 
+\newpage
 
-```{r enhancehurt-vs-industry}
+## 4.2. EnhanceHurt vs. Sector
+
+```{r enhancehurt-vs-sector, message = FALSE, warning = FALSE}
 # Create a new data frame with only the columns we need
-enhancehurt_vs_industry <- combined %>%
+enhancehurt_vs_sector <- combined %>%
   select(EnhanceHurt, Employment.sector)
 ```
 
-```{r enhancehurt-vs-industry-edit}
+```{r enhancehurt-vs-sector-edit, message = FALSE, warning = FALSE, echo = FALSE}
 # Remove rows where Employment.sector is NA
-enhancehurt_vs_industry <- enhancehurt_vs_industry %>%
+enhancehurt_vs_sector <- enhancehurt_vs_sector %>%
   filter(!is.na(Employment.sector))
 # Remove rows where EnhanceHurt is NA
-enhancehurt_vs_industry <- enhancehurt_vs_industry %>%
+enhancehurt_vs_sector <- enhancehurt_vs_sector %>%
   filter(!is.na(EnhanceHurt))
+```
 
-# For each industry, calculate the proportion of
+```{r enhancehurt-vs-sector-plot, message = FALSE, warning = FALSE}
+# For each sector, calculate the proportion of
 # respondents who think AI can enhance their work efficiency
-enhancehurt_vs_industry <- enhancehurt_vs_industry %>%
+enhancehurt_vs_sector <- enhancehurt_vs_sector %>%
   group_by(Employment.sector, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
-```
-
-```{r enhancehurt-vs-industry-plot}
-# Visualize using different histogram for each industry.
+# Visualize using different histogram for each sector.
 # Show the number of respondents inside each bar.
 # make legend bottom. Wrap x axis labels without changing plot size.
-enhancehurt_vs_industry_plot <- ggplot(
-  enhancehurt_vs_industry,
+enhancehurt_vs_sector_plot <- ggplot(
+  enhancehurt_vs_sector,
   aes(
     x = Employment.sector,
-    y = prop, fill = EnhanceHurt
-  )
+    y = prop, fill = factor(EnhanceHurt,
+      levels = c("detract", "neither", "enhance")
+    )
+  ),
+  ylim = c(0, 1)
 ) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_text(aes(label = count),
@@ -252,50 +286,59 @@ enhancehurt_vs_industry_plot <- ggplot(
     vjust = 1.5
   ) +
   labs(
-    x = "Industry", y = "Proportion of Respondents",
+    x = "Employment Sector", y = "Proportion of Respondents",
     fill = "Enhance or Hurt"
   ) +
   ggtitle("Proportion of Respondents Who Think AI Can\n
-  Enhance Their Work Efficiency by Industry") +
+  Enhance Their Work Efficiency by Employment Sector") +
   theme(
     plot.title = element_text(hjust = 0.5),
     legend.position = "bottom"
   )
 
-enhancehurt_vs_industry_plot
+enhancehurt_vs_sector_plot
+# save to png
+ggsave("enhancehurt_vs_sector_plot.png",
+  width = 10, height = 6, units = "in", dpi = 300
+)
 ```
+\newpage
 
 ## 4.3. EnhanceHurt vs. Education
 
-```{r enhancehurt-vs-education}
+```{r enhancehurt-vs-education, message = FALSE, warning = FALSE}
 # Create a new data frame with only the columns we need
 enhancehurt_vs_education <- combined %>%
   select(EnhanceHurt, Education)
 ```
 
-```{r enhancehurt-vs-education-edit}
+```{r enhancehurt-vs-education-edit, message = FALSE, warning = FALSE, echo = FALSE}
 # Remove rows where Education is NA
 enhancehurt_vs_education <- enhancehurt_vs_education %>%
   filter(!is.na(Education))
 # Remove rows where EnhanceHurt is NA
 enhancehurt_vs_education <- enhancehurt_vs_education %>%
   filter(!is.na(EnhanceHurt))
+```
 
+```{r enhancehurt-vs-education-plot, message = FALSE, warning = FALSE}
 # For each education level, calculate the proportion of
 # respondents who think AI can enhance their work efficiency
 enhancehurt_vs_education <- enhancehurt_vs_education %>%
   group_by(Education, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
-```
-
-```{r enhancehurt-vs-education-plot}
 # Visualize using different histogram for each education level.
 # Show the number of respondents on each bar.
-enhancehurt_vs_education_plot <- ggplot(enhancehurt_vs_education, aes(
-  x = Education, y = prop,
-  fill = EnhanceHurt
-)) +
+enhancehurt_vs_education_plot <- ggplot(
+  enhancehurt_vs_education,
+  aes(
+    x = Education, y = prop, fill = factor(EnhanceHurt,
+      levels = c("detract", "neither", "enhance")
+    )
+  ),
+  ylim = c(0, 1)
+) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_text(aes(label = count),
     position = position_dodge(width = 1),
@@ -308,85 +351,24 @@ enhancehurt_vs_education_plot <- ggplot(enhancehurt_vs_education, aes(
   ggtitle("Proportion of Respondents Who Think AI Can\n
   Enhance Their Work Efficiency by Education Level") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(legend.position = "top")
+  theme(legend.position = "bottom")
 
 enhancehurt_vs_education_plot
-```
-
-## 4.4. EnhanceHurt vs. Age
-
-```{r enhancehurt-vs-age}
-# Create a new data frame with only the columns we need
-enhancehurt_vs_age <- combined %>% select(EnhanceHurt, Age)
-```
-
-```{r enhancehurt-vs-age-edit}
-# Remove the Ages which say "DATA_EXPIRED" and "923"
-enhancehurt_vs_age <- enhancehurt_vs_age %>%
-  filter(enhancehurt_vs_age$Age != "DATA_EXPIRED")
-enhancehurt_vs_age <- enhancehurt_vs_age %>%
-  filter(enhancehurt_vs_age$Age != "923")
-# Remove rows where Age is NA
-enhancehurt_vs_age <- enhancehurt_vs_age %>%
-  filter(!is.na(Age))
-# Remove rows where EnhanceHurt is NA
-enhancehurt_vs_age <- enhancehurt_vs_age %>%
-  filter(!is.na(EnhanceHurt))
-
-# Change age rows which say "79" and "80" to "73"
-enhancehurt_vs_age$Age[enhancehurt_vs_age$Age == "79"] <- "73"
-enhancehurt_vs_age$Age[enhancehurt_vs_age$Age == "80"] <- "73"
-
-# Convert Age to numeric
-enhancehurt_vs_age$Age <- as.numeric(as.character(enhancehurt_vs_age$Age))
-# group ages by 5 years
-enhancehurt_vs_age$Age <- cut(enhancehurt_vs_age$Age,
-  breaks = seq(18, 80, by = 10)
+# save to png
+ggsave("enhancehurt_vs_education_plot.png",
+  width = 10, height = 6, units = "in", dpi = 300
 )
-# remove NA
-enhancehurt_vs_age <- enhancehurt_vs_age %>% filter(!is.na(Age))
-
-# create a new dataframe with the proportion of respondents who think AI can enhance their work efficiency for each age group
-enhancehurt_vs_age <- enhancehurt_vs_age %>%
-  group_by(Age, EnhanceHurt) %>%
-  summarize(count = n()) %>%
-  mutate(prop = count / sum(count))
 ```
+\newpage
 
-```{r enhancehurt-vs-age-plot}
-# Visualize using different histogram for each age group.
-# Show the number of respondents on each bar.
-enhancehurt_vs_age_plot <- ggplot(enhancehurt_vs_age, aes(
-  x = Age, y = prop,
-  fill = EnhanceHurt
-)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = count),
-    position = position_dodge(width = 1),
-    vjust = 1.5
-  ) +
-  labs(
-    x = "Age Group",
-    y = "Proportion of Respondents",
-    fill = "Enhance or Hurt",
-    caption = "*1 response from age 80 was added to the 68-78 age group"
-  ) +
-  ggtitle("Proportion of Respondents Who Think AI Can\n
-  Enhance Their Work Efficiency by Age Group") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(legend.position = "top")
+## 4.4. EnhanceHurt vs. Salary
 
-enhancehurt_vs_age_plot
-```
-
-## 4.5. EnhanceHurt vs. Salary
-
-```{r enhancehurt-vs-salary}
+```{r enhancehurt-vs-salary, message = FALSE, warning = FALSE}
 # Create a new data frame with only the columns we need
 enhancehurt_vs_salary <- combined %>% select(EnhanceHurt, Salary)
 ```
 
-```{r enhancehurt-vs-salary-edit}
+```{r enhancehurt-vs-salary-edit, message = FALSE, warning = FALSE, echo = FALSE}
 # Remove rows where Salary is NA
 enhancehurt_vs_salary <- enhancehurt_vs_salary %>%
   filter(!is.na(Salary))
@@ -397,22 +379,26 @@ enhancehurt_vs_salary <- enhancehurt_vs_salary %>%
 # remove rows where Salary is empty
 enhancehurt_vs_salary <- enhancehurt_vs_salary %>%
   filter(Salary != "")
+```
 
+```{r enhancehurt-vs-salary-plot, message = FALSE, warning = FALSE}
 # Create a new dataframe with the proportion of respondents who
 # think AI can enhance their work efficiency for each salary group
 enhancehurt_vs_salary <- enhancehurt_vs_salary %>%
   group_by(Salary, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
-```
-
-```{r enhancehurt-vs-salary-plot}
 # Visualize using different histogram for each salary group.
 # Show the number of respondents on each bar.
-enhancehurt_vs_salary_plot <- ggplot(enhancehurt_vs_salary, aes(
-  x = Salary, y = prop,
-  fill = EnhanceHurt
-)) +
+enhancehurt_vs_salary_plot <- ggplot(
+  enhancehurt_vs_salary,
+  aes(
+    x = Salary, y = prop, fill = factor(EnhanceHurt,
+      levels = c("detract", "neither", "enhance")
+    )
+  ),
+  ylim = c(0, 1)
+) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_text(aes(label = count),
     position = position_dodge(width = 1),
@@ -426,19 +412,24 @@ enhancehurt_vs_salary_plot <- ggplot(enhancehurt_vs_salary, aes(
   ggtitle("Proportion of Respondents Who Think AI Can\n
   Enhance Their Work Efficiency by Salary Group") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  theme(legend.position = "top")
+  theme(legend.position = "bottom")
 
 enhancehurt_vs_salary_plot
+# save to png
+ggsave("enhancehurt_vs_salary_plot.png",
+  width = 10, height = 6, units = "in", dpi = 300
+)
 ```
+\newpage
 
-## 4.6. EnhanceHurt vs. Gender
+## 4.5. EnhanceHurt vs. Gender
 
-```{r enhancehurt-vs-gender}
+```{r enhancehurt-vs-gender, message = FALSE, warning = FALSE}
 # Create a new data frame with only the columns we need
 enhancehurt_vs_gender <- combined %>% select(EnhanceHurt, Gender)
 ```
 
-```{r enhancehurt-vs-gender-edit}
+```{r enhancehurt-vs-gender-edit, message = FALSE, warning = FALSE, echo = FALSE}
 # Remove rows where Gender is NA
 enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
   filter(!is.na(Gender))
@@ -446,22 +437,273 @@ enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
 enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
   filter(!is.na(EnhanceHurt))
 
-table(enhancehurt_vs_gender$Gender)
-
 # remove rows where Gender is empty
 enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
-  filter(Gender != "Prefer to self-describe")
+  filter(Gender != "Prefer to self-describe:")
+```
 
+```{r enhancehurt-vs-gender-plot, message = FALSE, warning = FALSE}
 # Create a new dataframe with the proportion of respondents who
 # think AI can enhance their work efficiency for each gender
 enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
   group_by(Gender, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
+# Visualize the proportion of respondents who think AI can
+# enhance or hurt, based on gender, using a bar chart.
+# Show the number of respondents inside each bar.
+# make legend bottom. Wrap x axis labels without changing plot size.
+enhancehurt_vs_gender_plot <- ggplot(
+  enhancehurt_vs_gender,
+  aes(
+    x = Gender,
+    y = prop, fill = factor(EnhanceHurt,
+      levels = c("detract", "neither", "enhance")
+    )
+  ),
+  ylim = c(0, 1)
+) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = count),
+    position = position_dodge(width = 1),
+    vjust = 1.5
+  ) +
+  labs(
+    x = "Gender", y = "Proportion of Respondents",
+    fill = "Enhance or Hurt"
+  ) +
+  ggtitle("Proportion of Respondents Who Think AI Can\n
+  Enhance Their Work Efficiency by Gender") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  )
+
+enhancehurt_vs_gender_plot
+# save to png
+ggsave("enhancehurt_vs_gender_plot.png",
+  width = 10, height = 6, units = "in", dpi = 300
+)
+```
+\newpage
+
+## 4.6. EnhanceHurt vs. Ethnicity
+
+```{r enhancehurt-vs-country, message = FALSE, warning = FALSE}
+# Create a new data frame with only the columns we need
+enhancehurt_vs_ethnicity <- combined %>% select(EnhanceHurt, Ethnicity)
 ```
 
-```{r enhancehurt-vs-gender-plot}
-# Visualize using different histogram for each gender.
-# Show the number of respondents on each bar.
+```{r enhancehurt-vs-country-edit, message = FALSE, warning = FALSE, echo = FALSE}
+# Remove rows where Country is NA
+enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>%
+  filter(!is.na(Ethnicity))
+# Remove rows where EnhanceHurt is NA
+enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>%
+  filter(!is.na(EnhanceHurt))
 
+# Remove rows where Country is empty
+enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>%
+  filter(Ethnicity != "")
+# Remove the Ethnicity which says "DATA_EXPIRED"
+enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>%
+  filter(enhancehurt_vs_ethnicity$Ethnicity != "DATA_EXPIRED")
 ```
+
+```{r enhancehurt-vs-country-plot, message = FALSE, warning = FALSE}
+# Create a new dataframe with the proportion of respondents who
+# think AI can enhance their work efficiency for each country
+enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>%
+  group_by(Ethnicity, EnhanceHurt) %>%
+  summarize(count = n()) %>%
+  mutate(prop = count / sum(count))
+# Visualize the proportion of respondents who think AI can
+# enhance or hurt, based on country, using a bar chart.
+# Show the number of respondents inside each bar.
+# make legend bottom. Wrap x axis labels without changing plot size.
+enhancehurt_vs_ethnicity_plot <- ggplot(
+  enhancehurt_vs_ethnicity,
+  aes(
+    x = Ethnicity,
+    y = prop, fill = factor(EnhanceHurt,
+      levels = c("detract", "neither", "enhance")
+    )
+  ),
+  ylim = c(0, 1)
+) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = count),
+    position = position_dodge(width = 1),
+    vjust = 1.5
+  ) +
+  labs(
+    x = "Ethnicity",
+    y = "Proportion of Respondents",
+    fill = "Enhance or Hurt"
+  ) +
+  ggtitle("Proportion of Respondents Who Think AI Can\n
+  Enhance Their Work Efficiency by Ethnicity") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  )
+
+enhancehurt_vs_ethnicity_plot
+
+# save to png
+ggsave("enhancehurt_vs_ethnicity_plot.png",
+  width = 10, height = 6, units = "in", dpi = 300
+)
+```
+\newpage
+
+## 4.7. TimeEnergy vs. Education
+
+```{r timeenergy-vs-education, message = FALSE, warning = FALSE}
+# Create a new data frame with only the columns we need
+timeenergy_vs_education <- combined %>% select(TimeEnergy, Education)
+```
+
+```{r timeenergy-vs-education-edit, message = FALSE, warning = FALSE, echo = FALSE}
+# Remove rows where Education is NA
+timeenergy_vs_education <- timeenergy_vs_education %>%
+  filter(!is.na(Education))
+# Remove rows where TimeEnergy is NA
+timeenergy_vs_education <- timeenergy_vs_education %>%
+  filter(!is.na(TimeEnergy))
+
+# Remove rows where Education is empty
+timeenergy_vs_education <- timeenergy_vs_education %>%
+  filter(Education != "")
+```
+
+```{r timeenergy-vs-education-plot, message = FALSE, warning = FALSE}
+# Create a new dataframe with the proportion of respondents who
+# think AI can save their time and energy for each education level
+timeenergy_vs_education <- timeenergy_vs_education %>%
+  group_by(Education, TimeEnergy) %>%
+  summarize(count = n()) %>%
+  mutate(prop = count / sum(count))
+# Visualize the proportion of respondents who think AI can
+# save their time and energy, based on education level, using a bar chart.
+# Show the number of respondents inside each bar.
+# make legend bottom. Wrap x axis labels without changing plot size.
+# order the bars as "no time", "little time", "some time", "lot of time", and "neutral".
+timeenergy_vs_education_plot <- ggplot(
+  timeenergy_vs_education,
+  aes(
+    x = Education,
+    y = prop, fill = factor(TimeEnergy,
+      levels = c("no time", "little time", "some time", "lot of time", "neutral")
+    )
+  ),
+  ylim = c(0, 1)
+) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = count),
+    position = position_dodge(width = 1),
+    vjust = 1.5
+  ) +
+  labs(
+    x = "Education", y = "Proportion of Respondents",
+    fill = "Time and Energy"
+  ) +
+  ggtitle("Proportion of Respondents Who Think AI Can\n
+  Save Their Time and Energy by Education Level") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  )
+
+timeenergy_vs_education_plot
+
+# save to png
+ggsave("timeenergy_vs_education_plot.png",
+  width = 10, height = 6, units = "in", dpi = 300
+)
+```
+\newpage
+
+## 4.8. SimilarTasks vs. Age
+
+```{r similartasks-vs-age, message = FALSE, warning = FALSE}
+# Create a new data frame with only the columns we need
+similartasks_vs_age <- combined %>% select(SimilarTasks, Age)
+```
+
+```{r similartasks-vs-age-edit, message = FALSE, warning = FALSE, echo = FALSE}
+# Remove the Ages which say "DATA_EXPIRED" and "923"
+similartasks_vs_age <- similartasks_vs_age %>%
+  filter(similartasks_vs_age$Age != "DATA_EXPIRED")
+similartasks_vs_age <- similartasks_vs_age %>%
+  filter(similartasks_vs_age$Age != "923")
+# Remove rows where Age is NA
+similartasks_vs_age <- similartasks_vs_age %>%
+  filter(!is.na(Age))
+# Remove rows where SimilarTasks is NA
+similartasks_vs_age <- similartasks_vs_age %>%
+  filter(!is.na(SimilarTasks))
+
+# Change age rows which say "79" and "80" to "73"
+similartasks_vs_age$Age[similartasks_vs_age$Age == "79"] <- "73"
+similartasks_vs_age$Age[similartasks_vs_age$Age == "80"] <- "73"
+
+# Convert Age to numeric
+similartasks_vs_age$Age <- as.numeric(as.character(similartasks_vs_age$Age))
+# group ages by 5 years
+similartasks_vs_age$Age <- cut(similartasks_vs_age$Age,
+  breaks = seq(18, 80, by = 10)
+)
+# remove NA
+similartasks_vs_age <- similartasks_vs_age %>% filter(!is.na(Age))
+
+# create a new dataframe with the proportion of respondents who think AI can enhance their work efficiency for each age group
+similartasks_vs_age <- similartasks_vs_age %>%
+  group_by(Age, SimilarTasks) %>%
+  summarize(count = n()) %>%
+  mutate(prop = count / sum(count))
+```
+
+```{r similartasks-vs-age-plot, message = FALSE, warning = FALSE}
+# Visualize the proportion of respondents who think AI can
+# do similar tasks, based on age group, using a bar chart.
+# Show the number of respondents inside each bar.
+# make legend bottom. Wrap x axis labels without changing plot size.
+# order the bars as "Cannot perform any tasks", "Can perform only a few tasks",
+# "Can perform many tasks", "Can perform all tasks".
+# force the y axis to start at 0 and end at 1.
+similartasks_vs_age_plot <- ggplot( 
+  similartasks_vs_age,
+  aes(
+    x = Age,
+    y = prop, fill = factor(SimilarTasks,
+      levels = c("Cannot perform any tasks", "Can perform only a few tasks",
+      "Can perform many tasks", "Can perform all tasks")
+    )
+  ),
+  ylim = c(0, 1)
+) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = count),
+    position = position_dodge(width = 1),
+    vjust = 1.5
+  ) +
+  labs(
+    x = "Age", y = "Proportion of Respondents",
+    fill = "Similar Tasks"
+  ) +
+  ggtitle("Proportion of Respondents Who Think AI Can\n
+  Do Similar Tasks by Age Group") +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  )
+
+similartasks_vs_age_plot
+
+# save to png
+ggsave("similartasks_vs_age_plot.png",
+  width = 10, height = 6, units = "in", dpi = 300
+)
+```
+\newpage
