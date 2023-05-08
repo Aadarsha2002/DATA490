@@ -19,6 +19,7 @@ output:
 ```{r load-data, message = FALSE, warning = FALSE}
 library(tidyverse)
 library(ggplot2)
+library(knitr)
 
 # Load data. Top row is column name.
 edu <- read.csv("prolific_edu.csv")
@@ -31,60 +32,58 @@ qualtrics <- read.csv("qualtrics_data.csv")
 # 2. Data Cleaning
 
 ```{r combine-prolific-data}
-# Combine data into one data frame after mutating Age to be one data type
-edu <- edu %>% mutate(Age = as.character(Age))
-health <- health %>% mutate(Age = as.character(Age))
-retail <- retail %>% mutate(Age = as.character(Age))
-tech <- tech %>% mutate(Age = as.character(Age))
+# Mutate Age to be numeric data type
+edu <- edu %>% mutate(Age = as.numeric(Age))
+health <- health %>% mutate(Age = as.numeric(Age))
+retail <- retail %>% mutate(Age = as.numeric(Age))
+tech <- tech %>% mutate(Age = as.numeric(Age))
 
+# Combine all prolific data into one data frame
 combined <- bind_rows(edu, health, retail, tech)
+```
+
+```{r message = FALSE, warning = FALSE, echo = FALSE} 
 # export combined data to csv
-write.csv(combined, "combined_non_qualtrics.csv")
+# write.csv(combined, "combined_non_qualtrics.csv")
 ```
 
 ```{r add-filter-qualtrics-data}
-# combine qualtrics and combined data using qualtrics data's
-#     ProlificID column and combined data's Participant id
+# Merge qualtrics data with combined data over qualtrics' ProlificID column
+#   and combined's Participant.id column
 combined <- left_join(qualtrics, combined,
   by = c("ProlificID" = "Participant.id")
 )
-# rename "Duration..in.seconds." column to "Duration"
+# Rename the Duration..in.seconds. column to Duration
 colnames(combined)[
   colnames(combined) == "Duration..in.seconds."
 ] <- "Duration"
-# rename "Ethnicity.simplified" column to "Ethnicity"
+# Rename the Ethnicity.simplified column to Ethnicity
 colnames(combined)[
   colnames(combined) == "Ethnicity.simplified"
 ] <- "Ethnicity"
-# remove Age.x and keep only Age.y column and rename Age.y to Age
-combined <- combined %>%
-  select(-Age.x) %>%
-  rename(Age = Age.y)
-# remove Status.x and Status.y columns
-combined <- combined %>%
-  select(-Status.x) %>%
-  select(-Status.y)
-# remove Finished, Progress, UserLanguage, DistributionChannel,
-# Nationality, and Consent columns
+
+# Remove Finished, Progress, UserLanguage, DistributionChannel, Nationality,
+#   Consent, Age.x, Status.x, Status.y columns AND rename Age.y to Age
 combined <- combined %>%
   select(-Finished) %>%
   select(-Progress) %>%
   select(-UserLanguage) %>%
   select(-DistributionChannel) %>%
   select(-Nationality) %>%
-  select(-Consent)
+  select(-Consent) %>%
+  select(-Age.x) %>%
+  select(-Status.x) %>%
+  select(-Status.y) %>%
+  rename(Age = Age.y)
 
+# Remove rows which say "NA" in Submission.id column
+combined <- combined %>% filter(!is.na(Submission.id))
+# Remove rows which don't say "United States" in Country.of.residence column
+combined <- combined %>% filter(combined$Country.of.residence == "United States")
 
-# remove rows where Submission.id is NA
-combined <- combined %>%
-  filter(!is.na(Submission.id))
-# Keep only rows which say "United States" in "Country.of.residence" column
-combined <- combined %>%
-  filter(combined$Country.of.residence == "United States")
-
-# Replace all cells that say "Information Technology" and
-# "Science, Technology, Engineering & Mathematics" to "STEM/IT"
-# in Employment.sector column
+# Replace all cells that say
+#   "Information Technology" and "Science, Technology, Engineering & Mathematics"
+#   to "STEM/IT" in the Employment.sector column
 combined$Employment.sector[
   combined$Employment.sector == "Information Technology"
 ] <- "STEM/IT"
@@ -93,52 +92,57 @@ combined$Employment.sector[
 ] <- "STEM/IT"
 
 # Replace all cells in column EnhanceHurt that say
-# "AI will neither enhance nor detract from my work" to "neither",
-# "AI will enhance my work" to "enhance", and
-# "AI will detract from my work" to "detract"
+#   "AI will neither enhance nor detract from my work" to "neither",
+#   "AI will enhance my work" to "enhance", and
+#   "AI will detract from my work" to "detract"
 combined$EnhanceHurt[
   combined$EnhanceHurt == "AI will neither enhance nor detract from my work"
-] <- "neither"
+] <- "Neither"
 combined$EnhanceHurt[
   combined$EnhanceHurt == "AI will enhance my work"
-] <- "enhance"
+] <- "Enhance"
 combined$EnhanceHurt[
   combined$EnhanceHurt == "AI will detract from my work"
-] <- "detract"
+] <- "Detract"
 
 # Replace all cells in column TimeEnergy that say
-# "Save a lot of time" to "lot of time",
-# "Save little time" to "little time",
-# "Save no time" to "no time",
-# "Save some time" to "some time", and
-# "Neutral" to "neutral"
+#   "Save a lot of time" to "lot of time",
+#   "Save some time" to "some time",
+#   "Neutral" to "neutral"
+#   "Save little time" to "little time", and
+#   "Save no time" to "no time",
 combined$TimeEnergy[
   combined$TimeEnergy == "Save a lot of time"
-] <- "lot of time"
-combined$TimeEnergy[
-  combined$TimeEnergy == "Save little time"
-] <- "little time"
-combined$TimeEnergy[
-  combined$TimeEnergy == "Save no time"
-] <- "no time"
+] <- "Lot of time"
 combined$TimeEnergy[
   combined$TimeEnergy == "Save some time"
-] <- "some time"
+] <- "Some time"
 combined$TimeEnergy[
   combined$TimeEnergy == "Neutral"
-] <- "neutral"
+] <- "Neutral"
+combined$TimeEnergy[
+  combined$TimeEnergy == "Save little time"
+] <- "Little time"
+combined$TimeEnergy[
+  combined$TimeEnergy == "Save no time"
+] <- "No time"
+```
 
+```{r message = FALSE, warning = FALSE, echo = FALSE}
 # export data to csv
-write.csv(combined, "combined_qualtrics.csv")
+# write.csv(combined, "combined_qualtrics.csv")
 ```
 
 ```{r keep-attentive-responses}
-# Keep only rows which say "Compose an email" in "Attention" column
+# Remove rows which don't say "Compose an email" in the Attention column
 combined <- combined %>% filter(combined$Attention == "Compose an email")
-# remove Attention column
+# Remove the Attention column
 combined <- combined %>% select(-Attention)
+```
+
+```{r message = FALSE, warning = FALSE, echo = FALSE}
 # export data to csv
-write.csv(combined, "combined_qualtrics_attentive.csv")
+# write.csv(combined, "combined_qualtrics_attentive.csv")
 ```
 \newpage
 
@@ -224,142 +228,117 @@ The columns in the dataset are:
 ```{r avg-time}
 # Create a new data frame with only the columns we need
 avg_time <- combined %>% select(Duration)
-# Remove rows where Duration is NA
+
+# Remove rows which say "NA" in the Duration column
 avg_time <- avg_time %>% filter(!is.na(Duration))
+
 # Calculate the average time taken to complete the survey
 avg_time <- avg_time %>% summarise(avg_time = mean(Duration))
-# Convert to <x> minutes and <y> seconds
+
+# Convert to minutes and seconds
 avg_time$avg_time <- avg_time$avg_time / 60
 avg_time$avg_time <- paste0(
-  floor(avg_time$avg_time),
-  " minutes and ",
-  round((avg_time$avg_time - floor(avg_time$avg_time)) * 60),
-  " seconds"
+  floor(avg_time$avg_time), " minutes and ",
+  round((avg_time$avg_time - floor(avg_time$avg_time)) * 60), " seconds"
 )
+
 # Print the average time taken to complete the survey
-avg_time
+kable(avg_time, row.names = FALSE)
 ```
 
 The average time taken to complete the survey is 2 minutes and 13 seconds. This is a reasonable amount of time to complete the survey, and is not too long or too short. This means that the data collected is not rushed, and is of good quality.
 \newpage
 
-## 4.2. EnhanceHurt vs. Sector
+## 4.2. Enhance/Detract vs. Sector
 
 ```{r enhancehurt-vs-sector, message = FALSE, warning = FALSE}
-# Create a new data frame with only the columns we need
-enhancehurt_vs_sector <- combined %>%
-  select(EnhanceHurt, Employment.sector)
+# Create a new data frame with only the necessary columns
+enhancehurt_vs_sector <- combined %>% select(EnhanceHurt, Employment.sector)
 ```
 
 ```{r enhancehurt-vs-sector-edit, message = FALSE, warning = FALSE, echo = FALSE}
 # Remove rows where Employment.sector is NA
-enhancehurt_vs_sector <- enhancehurt_vs_sector %>%
-  filter(!is.na(Employment.sector))
+enhancehurt_vs_sector <- enhancehurt_vs_sector %>% filter(!is.na(Employment.sector))
 # Remove rows where EnhanceHurt is NA
-enhancehurt_vs_sector <- enhancehurt_vs_sector %>%
-  filter(!is.na(EnhanceHurt))
+enhancehurt_vs_sector <- enhancehurt_vs_sector %>% filter(!is.na(EnhanceHurt))
 ```
 
 ```{r enhancehurt-vs-sector-plot, message = FALSE, warning = FALSE}
-# For each sector, calculate the proportion of
-# respondents who think AI can enhance their work efficiency
+# For each sector, calculate the proportion of respondents who
+#   think AI can enhance their work efficiency
 enhancehurt_vs_sector <- enhancehurt_vs_sector %>%
   group_by(Employment.sector, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
-# Visualize using different histogram for each sector.
-# Show the number of respondents inside each bar.
-# make legend bottom. Wrap x axis labels without changing plot size.
+
+# Create a bar chart to show the proportion of respondents who think AI
+#   can enhance their work efficiency by employment sector
 enhancehurt_vs_sector_plot <- ggplot(
   enhancehurt_vs_sector,
-  aes(
-    x = Employment.sector,
-    y = prop, fill = factor(EnhanceHurt,
-      levels = c("detract", "neither", "enhance")
-    )
-  ),
+  aes(x = Employment.sector, y = prop, fill = factor(EnhanceHurt,
+    levels = c("Detract", "Neither", "Enhance")
+  )),
   ylim = c(0, 1)
 ) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = count),
-    position = position_dodge(width = 1),
-    vjust = 1.5
-  ) +
+  geom_text(aes(label = count), position = position_dodge(width = 1), vjust = 1.5) +
   labs(
-    x = "Employment Sector", y = "Proportion of Respondents",
-    fill = "Enhance or Hurt"
+    x = "Employment Sector", y = "Proportion of Respondents", fill = "Enhance or Detract"
   ) +
-  ggtitle("Proportion of Respondents Who Think AI Can\n
-  Enhance Their Work Efficiency by Employment Sector") +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "bottom"
-  )
+  ggtitle("Enhance/Detract their Work vs. Employment Sector") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom")
 
+# Print the bar chart
 enhancehurt_vs_sector_plot
 ```
 
 ```{r enhancehurt-vs-sector-png, message = FALSE, warning = FALSE, echo = FALSE}
 # save to png
-ggsave("enhancehurt_vs_sector_plot.png",
-  width = 10, height = 6, units = "in", dpi = 300
-)
+ggsave("enhancehurt_vs_sector_plot.png", width = 10, height = 6, units = "in", dpi = 300)
 ```
 
-Respondents from the STEM/IT are most confident that AI will enhance their work efficiency. Respondents from the Education and Training, and Medicine sectors believe that AI will detract from their work efficiency. Respondents from the Retail sector are most unsure about whether AI will enhance or detract from their work efficiency. This is likely because the Retail sector is the most diverse sector, and includes a wide range of jobs, from sales assistants to store managers. This means that the impact of AI on the Retail sector is likely to be mixed, with some jobs being enhanced, and others being detracted. This is in contrast to the STEM/IT sector, where the impact of AI is likely to be more consistent across jobs in the STEM/IT sector, as the jobs in this sector are more similar to each other.
-
-The Education and Training sector is also likely to be more consistent, as the jobs in this sector are also more similar to each other. The Medicine sector is likely to be more diverse, but the impact of AI is likely to be more consistent, as the jobs in this sector are more specialized.
+According to our survey results, respondents in the STEM/IT fields express the highest degree of confidence in AI's ability to improve work efficiency. In contrast, respondents from the Education and Training and Medicine sectors indicate that AI will likely detract from their work efficiency. The Retail sector is the least certain about the impact of AI on work efficiency, which can be attributed to its possibly diverse range of jobs, spanning from sales assistants to store managers. Consequently, the effects of AI on this sector are expected to vary, with some jobs being enhanced and others detracted. Unlike the Retail sector, the STEM/IT sector is anticipated to have a more consistent impact from AI as the jobs in this field are more alike. Similarly, the Education and Training sector is expected to be uniform in the effects of AI due to the jobs' similarities, while the Medicine sector's jobs are more specialized, but the impact of AI is expected to be consistent.
 \newpage
 
-## 4.3. EnhanceHurt vs. Education
+## 4.3. Enhance/Detract vs. Education
 
 ```{r enhancehurt-vs-education, message = FALSE, warning = FALSE}
-# Create a new data frame with only the columns we need
-enhancehurt_vs_education <- combined %>%
-  select(EnhanceHurt, Education)
+# Create a new data frame with only the necessary columns
+enhancehurt_vs_education <- combined %>% select(EnhanceHurt, Education)
 ```
 
 ```{r enhancehurt-vs-education-edit, message = FALSE, warning = FALSE, echo = FALSE}
-# Remove rows where Education is NA
-enhancehurt_vs_education <- enhancehurt_vs_education %>%
-  filter(!is.na(Education))
-# Remove rows where EnhanceHurt is NA
-enhancehurt_vs_education <- enhancehurt_vs_education %>%
-  filter(!is.na(EnhanceHurt))
+# Remove the rows where Education is NA
+enhancehurt_vs_education <- enhancehurt_vs_education %>% filter(!is.na(Education))
+# Remove the rows where EnhanceHurt is NA
+enhancehurt_vs_education <- enhancehurt_vs_education %>% filter(!is.na(EnhanceHurt))
 ```
 
 ```{r enhancehurt-vs-education-plot, message = FALSE, warning = FALSE}
-# For each education level, calculate the proportion of
-# respondents who think AI can enhance their work efficiency
+# For each education level, calculate the proportion of respondents who
+#   think AI can enhance their work efficiency
 enhancehurt_vs_education <- enhancehurt_vs_education %>%
   group_by(Education, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
-# Visualize using different histogram for each education level.
-# Show the number of respondents on each bar.
+
+# Create a bar chart to show the proportion of respondents who think AI
+#   can enhance their work efficiency by education level
 enhancehurt_vs_education_plot <- ggplot(
   enhancehurt_vs_education,
-  aes(
-    x = Education, y = prop, fill = factor(EnhanceHurt,
-      levels = c("detract", "neither", "enhance")
-    )
-  ),
+  aes(x = Education, y = prop, fill = factor(EnhanceHurt,
+    levels = c("Detract", "Neither", "Enhance")
+  )),
   ylim = c(0, 1)
 ) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = count),
-    position = position_dodge(width = 1),
-    vjust = 1.5
-  ) +
-  labs(
-    x = "Education Level", y = "Proportion of Respondents",
-    fill = "Enhance or Hurt"
-  ) +
-  ggtitle("Proportion of Respondents Who Think AI Can\n
-  Enhance Their Work Efficiency by Education Level") +
+  geom_text(aes(label = count), position = position_dodge(width = 1), vjust = 1.5) +
+  labs(x = "Education Level", y = "Proportion of Respondents", fill = "Enhance or Detract") +
+  ggtitle("Enhance/Detract from their Work vs. Education level") +
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(legend.position = "bottom")
 
+# Print the bar chart
 enhancehurt_vs_education_plot
 ```
 
@@ -370,204 +349,156 @@ ggsave("enhancehurt_vs_education_plot.png",
 )
 ```
 
-Those with bachelor's and graduate degrees believe that AI will enhance their work efficiency. On the other hand, those with some college education background relatively believe less that AI will enhance their work efficiency. Those with high school education responded mostly that AI will neither enhance nor detract from their work. Since there was only one respondent who had no education background. We can see that as a respondent has a higher education background, more they believe that AI will enhance their work efficiency. This is likely because those with higher education background are more likely to have jobs that require more complex tasks, which are more likely to be enhanced by AI. On the other hand, those with lower education background are more likely to have jobs that require less complex tasks, which are more likely to be unaffected by AI.
+The data shows that individuals with bachelor's and graduate degrees have a more positive outlook on the impact of AI on their work efficiency, while those with some college education are less convinced. Those with a high school education believe that AI will have a neutral effect on their work. It is noteworthy that only one respondent had no education background. It appears that as educational attainment increases, so does the belief that AI will enhance work efficiency. This may be because higher education is associated with jobs that require more complex tasks, which are more likely to be positively impacted by AI. Conversely, lower education levels are often associated with jobs that involve less complex tasks, which are less likely to be affected by AI.
 \newpage
 
-## 4.4. EnhanceHurt vs. Salary
+## 4.4. Enhance/Detract vs. Salary
 
 ```{r enhancehurt-vs-salary, message = FALSE, warning = FALSE}
-# Create a new data frame with only the columns we need
+# Create a new data frame with only the necessary columns
 enhancehurt_vs_salary <- combined %>% select(EnhanceHurt, Salary)
 ```
 
 ```{r enhancehurt-vs-salary-edit, message = FALSE, warning = FALSE, echo = FALSE}
-# Remove rows where Salary is NA
-enhancehurt_vs_salary <- enhancehurt_vs_salary %>%
-  filter(!is.na(Salary))
-# Remove rows where EnhanceHurt is NA
-enhancehurt_vs_salary <- enhancehurt_vs_salary %>%
-  filter(!is.na(EnhanceHurt))
+# Remove the rows where Salary is NA
+enhancehurt_vs_salary <- enhancehurt_vs_salary %>% filter(!is.na(Salary))
+# Remove the rows where EnhanceHurt is NA
+enhancehurt_vs_salary <- enhancehurt_vs_salary %>% filter(!is.na(EnhanceHurt))
 
-# remove rows where Salary is empty
-enhancehurt_vs_salary <- enhancehurt_vs_salary %>%
-  filter(Salary != "")
+# Remove the rows where Salary is empty
+enhancehurt_vs_salary <- enhancehurt_vs_salary %>% filter(Salary != "")
 ```
 
 ```{r enhancehurt-vs-salary-plot, message = FALSE, warning = FALSE}
-# Create a new dataframe with the proportion of respondents who
-# think AI can enhance their work efficiency for each salary group
+# For each Salary range, calculate the proportion of respondents who
+#   think AI can enhance their work efficiency
 enhancehurt_vs_salary <- enhancehurt_vs_salary %>%
   group_by(Salary, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
-# Visualize using different histogram for each salary group.
-# Show the number of respondents on each bar.
+
+# Create a bar chart to show the proportion of respondents who think AI
+#   can enhance their work efficiency by salary range
 enhancehurt_vs_salary_plot <- ggplot(
   enhancehurt_vs_salary,
-  aes(
-    x = Salary, y = prop, fill = factor(EnhanceHurt,
-      levels = c("detract", "neither", "enhance")
-    )
-  ),
+  aes(x = Salary, y = prop, fill = factor(EnhanceHurt,
+    levels = c("Detract", "Neither", "Enhance")
+  )),
   ylim = c(0, 1)
 ) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = count),
-    position = position_dodge(width = 1),
-    vjust = 1.5
-  ) +
-  labs(
-    x = "Salary Group",
-    y = "Proportion of Respondents",
-    fill = "Enhance or Hurt"
-  ) +
-  ggtitle("Proportion of Respondents Who Think AI Can\n
-  Enhance Their Work Efficiency by Salary Group") +
+  geom_text(aes(label = count), position = position_dodge(width = 1), vjust = 1.5) +
+  labs(x = "Salary Group", y = "Proportion of Respondents", fill = "Enhance or Detract") +
+  ggtitle("Enhance/Detract from their Work vs. Salary") +
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(legend.position = "bottom")
 
+# Print the bar chart
 enhancehurt_vs_salary_plot
 ```
 
 ```{r enhancehurt-vs-salary-png, message = FALSE, warning = FALSE, echo = FALSE}
 # save to png
-ggsave("enhancehurt_vs_salary_plot.png",
-  width = 10, height = 6, units = "in", dpi = 300
-)
+ggsave("enhancehurt_vs_salary_plot.png", width = 10, height = 6, units = "in", dpi = 300)
 ```
 
-This data shows that as people earn more salaries, the more they believe that AI will enhance their work efficiency. This is likely because those who earn more salaries are more likely to have jobs that require more specific tasks, which are more likely to be enhanced by AI. An example is a doctor. A doctor is more likely to earn a higher salary than a cashier. A doctor's job requires more specific tasks, such as diagnosing patients, which are more likely to be enhanced by AI. On the other hand, a cashier's job requires less specific tasks, such as scanning items, which are less likely to be enhanced by AI.
+The data presented highlights a correlation between salary and belief in the potential of AI to enhance work efficiency. The chart suggest that higher earners are more likely to hold this belief, potentially due to the nature of their jobs. Occupations that require more specific tasks, such as a doctor's role, are more likely to benefit from AI-enhanced tools, which could explain why individuals in higher-paying jobs are more optimistic about AI's potential impact. In contrast, roles that require less specific tasks, such as those of a cashier, may have fewer opportunities for AI to enhance work efficiency. This information underscores the importance of considering the nature of different occupations when evaluating the potential impact of AI on the workforce.
 \newpage
 
-## 4.5. EnhanceHurt vs. Gender
+## 4.5. Enhance/Detract vs. Gender
 
 ```{r enhancehurt-vs-gender, message = FALSE, warning = FALSE}
-# Create a new data frame with only the columns we need
+# Create a new data frame with only the necessary columns
 enhancehurt_vs_gender <- combined %>% select(EnhanceHurt, Gender)
 ```
 
 ```{r enhancehurt-vs-gender-edit, message = FALSE, warning = FALSE, echo = FALSE}
 # Remove rows where Gender is NA
-enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
-  filter(!is.na(Gender))
+enhancehurt_vs_gender <- enhancehurt_vs_gender %>% filter(!is.na(Gender))
 # Remove rows where EnhanceHurt is NA
-enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
-  filter(!is.na(EnhanceHurt))
+enhancehurt_vs_gender <- enhancehurt_vs_gender %>% filter(!is.na(EnhanceHurt))
 
-# remove rows where Gender is empty
+# Remove rows where Gender is empty
 enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
   filter(Gender != "Prefer to self-describe:")
 ```
 
 ```{r enhancehurt-vs-gender-plot, message = FALSE, warning = FALSE}
-# Create a new dataframe with the proportion of respondents who
-# think AI can enhance their work efficiency for each gender
+# For each gender, calculate the proportion of respondents who
+#   think AI can enhance their work efficiency
 enhancehurt_vs_gender <- enhancehurt_vs_gender %>%
   group_by(Gender, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
-# Visualize the proportion of respondents who think AI can
-# enhance or hurt, based on gender, using a bar chart.
-# Show the number of respondents inside each bar.
-# make legend bottom. Wrap x axis labels without changing plot size.
+
+# Create a bar chart to show the proportion of respondents who think AI
+#   can enhance their work efficiency by gender
 enhancehurt_vs_gender_plot <- ggplot(
   enhancehurt_vs_gender,
-  aes(
-    x = Gender,
-    y = prop, fill = factor(EnhanceHurt,
-      levels = c("detract", "neither", "enhance")
-    )
-  ),
+  aes(x = Gender, y = prop, fill = factor(EnhanceHurt,
+    levels = c("Detract", "Neither", "Enhance")
+  )),
   ylim = c(0, 1)
 ) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = count),
-    position = position_dodge(width = 1),
-    vjust = 1.5
-  ) +
-  labs(
-    x = "Gender", y = "Proportion of Respondents",
-    fill = "Enhance or Hurt"
-  ) +
-  ggtitle("Proportion of Respondents Who Think AI Can\n
-  Enhance Their Work Efficiency by Gender") +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "bottom"
-  )
+  geom_text(aes(label = count), position = position_dodge(width = 1), vjust = 1.5) +
+  labs(x = "Gender", y = "Proportion of Respondents", fill = "Enhance or Detract") +
+  ggtitle("Enhance/Detract from Work vs. Gender") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom")
 
+# Print the bar chart
 enhancehurt_vs_gender_plot
 ```
 
 ```{r enhancehurt-vs-gender-png, message = FALSE, warning = FALSE, echo = FALSE}
 # save to png
-ggsave("enhancehurt_vs_gender_plot.png",
-  width = 10, height = 6, units = "in", dpi = 300
-)
+ggsave("enhancehurt_vs_gender_plot.png", width = 10, height = 6, units = "in", dpi = 300)
 ```
 
-It is evident from this data that a higher proportion of males responded that AI will enhance their task than females. On the other hand, a higher proportion of females responded that AI will detract them from their tasks than males. This is likely because of gender disparities, evident in the next salary groups vs. gender chart. A lot of male respondents have higher salaries, whereas a lot of female respondents have lower salaries. Similarly, from the above EnhanceHurt vs. Salary chart in the previous section, it was evident that higher salaried individuals believed that AI would enhance their tasks. This trend highlights the difference in preferences due to pay inequality based on gender distribution.
+The data indicates that a greater percentage of male participants believed that AI would improve their work performance, whereas a higher proportion of female respondents believed it would detract from their tasks. This gender disparity may be linked to the salary differences between men and women, as demonstrated in the chart displaying gender distribution in various salary brackets. The chart shows that a majority of male respondents hold higher-paying jobs than their female counterparts. Additionally, the EnhanceHurt vs. Salary chart in the previous section revealed that individuals with higher salaries were more likely to believe that AI would improve their work. This trend underscores the differences in preferences between men and women, which can be attributed to gender-based pay inequality.
 \newpage
 
 ## 4.6. Salary vs. Gender 
 
 ```{r salary-vs-gender, message = FALSE, warning = FALSE}
-# Create a new data frame with only the columns we neeed
+# Create a new data frame with only the necessary columns
 salary_vs_gender <- combined %>% select(Gender, Salary)
 ```
 
 ```{r salary-vs-gender-edit, message = FALSE, warning = FALSE, echo = FALSE}
-# remove rows where Gender is empty
-salary_vs_gender <- salary_vs_gender %>%
-  filter(Gender != "Prefer to self-describe:")
-# remove rows where Salary is empty
-salary_vs_gender <- salary_vs_gender %>%
-  filter(Salary != "")
+# Remove the rows where Gender is NA
+salary_vs_gender <- salary_vs_gender %>% filter(!is.na(Gender))
+# Remove the rows where Salary is NA
+salary_vs_gender <- salary_vs_gender %>% filter(!is.na(Salary))
 
-# Remove rows where Gender is NA
-salary_vs_gender <- salary_vs_gender %>%
-  filter(!is.na(Gender))
-# Remove rows where Salary is NA
-salary_vs_gender <- salary_vs_gender %>%
-  filter(!is.na(Salary))
+# Remove the rows where Gender is empty
+salary_vs_gender <- salary_vs_gender %>% filter(Gender != "Prefer to self-describe:")
+
+# Remove the rows where Salary is empty
+salary_vs_gender <- salary_vs_gender %>% filter(Salary != "")
 ```
 
 ```{r salary-vs-gender-plot, message = FALSE, warning = FALSE}
-# Create a new dataframe with the proportion of respondents who
-# think AI can enhance their work efficiency for each gender
+# For each gender, calculate the proportion of respondents by salary
 salary_vs_gender <- salary_vs_gender %>%
   group_by(Gender, Salary) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
-# Visualize the proportion of respondents by salaries
-# based on gender, using a bar chart.
-# Show the number of respondents inside each bar.
-# make legend bottom. Wrap x axis labels without changing plot size.
+
+# Create a bar chart to show the proportion of respondents by salary
+#   split by gender
 salary_vs_gender_plot <- ggplot(
   salary_vs_gender,
-  aes(
-    x = Salary,
-    y = prop,
-    fill = factor(Gender)
-  ),
+  aes(x = Salary, y = prop, fill = factor(Gender)),
   ylim = c(0, 1)
 ) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = count),
-    position = position_dodge(width = 1),
-    vjust = 1.5
-  ) +
-  labs(
-    x = "Salary", y = "Proportion of Respondents",
-    fill = "Gender"
-  ) +
-  ggtitle("Proportion of Respondents in each salary group\n
-  by Gender") +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "bottom"
-  )
+  geom_text(aes(label = count), position = position_dodge(width = 1), vjust = 1.5) +
+  labs(x = "Salary", y = "Proportion of Respondents", fill = "Gender") +
+  ggtitle("Gender vs. Salary") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom")
 
+# Print the bar chart
 salary_vs_gender_plot
 ```
 
@@ -578,70 +509,53 @@ ggsave("salary_vs_gender_plot.png",
 )
 ```
 
-This chart shows the gender inequality in salaries. Despite having almost the same number of respondents in both gender categories, it is clear that males dominate the higher salaries, and females dominate thhe lower salaries. This is possibly due to a variety of factors like willingness to take part in this survey, recruiting practices and biases, gender pay inequality, among others.
+This chart depicts the disparity in salaries between genders, highlighting the significant gap between male and female earnings. While the number of respondents is roughly equal in both categories, the data reveals a concerning trend, with males overwhelmingly occupying the higher salary brackets and females being disproportionately represented in the lower ones. The root causes of this discrepancy are complex and may include factors such as willingness to participate in surveys, discriminatory hiring practices and unconscious biases, gender pay inequality, and more.
 \newpage
 
-## 4.6. EnhanceHurt vs. Ethnicity
+## 4.7. Enhance/Detract vs. Ethnicity
 
 ```{r enhancehurt-vs-ethnicity, message = FALSE, warning = FALSE}
-# Create a new data frame with only the columns we need
+# Create a new data frame with only the necessary columns
 enhancehurt_vs_ethnicity <- combined %>% select(EnhanceHurt, Ethnicity)
 ```
 
 ```{r enhancehurt-vs-ethnicity-edit, message = FALSE, warning = FALSE, echo = FALSE}
-# Remove rows where Ethnicity is NA
-enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>%
-  filter(!is.na(Ethnicity))
-# Remove rows where EnhanceHurt is NA
-enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>%
-  filter(!is.na(EnhanceHurt))
+# Remove the rows where Ethnicity is NA
+enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>% filter(!is.na(Ethnicity))
+# Remove the rows where EnhanceHurt is NA
+enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>% filter(!is.na(EnhanceHurt))
 
-# Remove rows where Ethnicity is empty
+# Remove the rows where Ethnicity is empty
+enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>% filter(Ethnicity != "")
+# Remove the rows where Ethnicity says "DATA_EXPIRED"
 enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>%
-  filter(Ethnicity != "")
-# Remove the Ethnicity which says "DATA_EXPIRED"
-enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>%
-  filter(enhancehurt_vs_ethnicity$Ethnicity != "DATA_EXPIRED")
+  filter(Ethnicity != "DATA_EXPIRED")
 ```
 
 ```{r enhancehurt-vs-ethnicity-plot, message = FALSE, warning = FALSE}
-# Create a new dataframe with the proportion of respondents who
-# think AI can enhance their work efficiency for each Ethnicity
+# For each Ethnicity, calculate the proportion of respondents who
+#   think AI can enhance their work efficiency
 enhancehurt_vs_ethnicity <- enhancehurt_vs_ethnicity %>%
   group_by(Ethnicity, EnhanceHurt) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
-# Visualize the proportion of respondents who think AI can
-# enhance or hurt, based on Ethnicity, using a bar chart.
-# Show the number of respondents inside each bar.
-# make legend bottom. Wrap x axis labels without changing plot size.
+
+# Create a bar chart to show the proportion of respondents who think AI
+#   can enhance their work efficiency by ethnicity
 enhancehurt_vs_ethnicity_plot <- ggplot(
   enhancehurt_vs_ethnicity,
-  aes(
-    x = Ethnicity,
-    y = prop, fill = factor(EnhanceHurt,
-      levels = c("detract", "neither", "enhance")
-    )
-  ),
+  aes(x = Ethnicity, y = prop, fill = factor(EnhanceHurt,
+    levels = c("Detract", "Neither", "Enhance")
+  )),
   ylim = c(0, 1)
 ) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = count),
-    position = position_dodge(width = 1),
-    vjust = 1.5
-  ) +
-  labs(
-    x = "Ethnicity",
-    y = "Proportion of Respondents",
-    fill = "Enhance or Hurt"
-  ) +
-  ggtitle("Proportion of Respondents Who Think AI Can\n
-  Enhance Their Work Efficiency by Ethnicity") +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "bottom"
-  )
+  geom_text(aes(label = count), position = position_dodge(width = 1), vjust = 1.5) +
+  labs(x = "Ethnicity", y = "Proportion of Respondents", fill = "Enhance or Hurt") +
+  ggtitle("Enhance/Detract from their work vs. Ethnicity") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom")
 
+# Print the bar chart
 enhancehurt_vs_ethnicity_plot
 ```
 
@@ -652,71 +566,53 @@ ggsave("enhancehurt_vs_ethnicity_plot.png",
 )
 ```
 
-From this chart, it is evident that Asians are very confident that AI will enhance their work efficiency, but respondents who are White are split between whether it'll enhance or neither enhance or detract their work efficiency. The other races uniformly believe to a lesser degree than Asians that AI will enhance their work efficiency. This could be due to the fact that Asians are more likely to be in the tech and healthcare industries, and thus have more experience with AI, and thus are more confident that AI will enhance their work efficiency. This is reflected in the ethnicity vs. employment sector chart in the next section.
+Based on the data presented in the chart, it is clear that Asians have a high level of confidence in the ability of AI to enhance their work efficiency. On the other hand, the responses of White respondents are divided between those who believe that AI will enhance their work efficiency, and those who believe that it will neither enhance nor detract from it. The remaining racial groups exhibit a lower level of confidence in the potential of AI to enhance their work efficiency compared to Asians. One possible explanation for this discrepancy is that Asians are more likely to work in industries such as technology and healthcare, where they have more exposure to AI and its potential benefits. This idea is further supported by the ethnicity vs. employment sector chart presented in the next section.
 \newpage
 
 ## 4.8. Employment Sector vs. Ethnicity
 
 ```{r sector-vs-ethnicity, message = FALSE, warning = FALSE}
-# Create a new data frame with only the columns we need
+# Create a new data frame with only the necessary columns
 sector_vs_ethnicity <- combined %>% select(Employment.sector, Ethnicity)
 ```
 
 ```{r sector-vs-ethnicity-edit, message = FALSE, warning = FALSE, echo = FALSE}
-# Remove rows where ethnicity is NA
-sector_vs_ethnicity <- sector_vs_ethnicity %>%
-  filter(!is.na(Ethnicity))
-# Remove rows where sector is NA
-sector_vs_ethnicity <- sector_vs_ethnicity %>%
-  filter(!is.na(Employment.sector))
+# Remove the rows where ethnicity is NA
+sector_vs_ethnicity <- sector_vs_ethnicity %>% filter(!is.na(Ethnicity))
+# Remove the rows where sector is NA
+sector_vs_ethnicity <- sector_vs_ethnicity %>% filter(!is.na(Employment.sector))
 
-# Remove rows where Ethnicity is empty
-sector_vs_ethnicity <- sector_vs_ethnicity %>%
-  filter(Ethnicity != "")
-# Remove the Ethnicity which says "DATA_EXPIRED"
-sector_vs_ethnicity <- sector_vs_ethnicity %>%
-  filter(sector_vs_ethnicity$Ethnicity != "DATA_EXPIRED")
+# Remove the rows where Ethnicity is empty
+sector_vs_ethnicity <- sector_vs_ethnicity %>% filter(Ethnicity != "")
+# Remove the rows in Ethnicity which say "DATA_EXPIRED"
+sector_vs_ethnicity <- sector_vs_ethnicity %>% filter(Ethnicity != "DATA_EXPIRED")
 ```
 
 ```{r sector-vs-ethnicity-plot, message = FALSE, warning = FALSE}
-# Create a new dataframe with the proportion of respondents in each
-# ethnicity by sector
+# For each Ethnicity, calculate the proportion of respondents by employment sector
 sector_vs_ethnicity <- sector_vs_ethnicity %>%
   group_by(Ethnicity, Employment.sector) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
 
-# Visualize the proportion of respondents' ethnicities based
-# on sector, using a bar chart.
-# Show the number of respondents inside each bar.
-# make legend bottom. Wrap x axis labels without changing plot size.
+# Create a bar chart to show the proportion of respondents by employment sector
+#   split by ethnicity
 sector_vs_ethnicity_plot <- ggplot(
   sector_vs_ethnicity,
-  aes(
-    x = Employment.sector,
-    y = prop, fill = factor(Ethnicity,
-      levels = c("White", "Black", "Asian", "Mixed", "Other")
-    )
-  ),
+  aes(x = Employment.sector, y = prop, fill = factor(Ethnicity,
+    levels = c("White", "Black", "Asian", "Mixed", "Other")
+  )),
   ylim = c(0, 1)
 ) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = count),
-    position = position_dodge(width = 1),
-    vjust = 1.5
-  ) +
+  geom_text(aes(label = count), position = position_dodge(width = 1), vjust = 1.5) +
   labs(
-    x = "Sector",
-    y = "Proportion of Respondents",
-    fill = "Enhance or Hurt"
+    x = "Employment Sector", y = "Proportion of Respondents", fill = "Enhance or Detract"
   ) +
-  ggtitle("Proportion of Respondents by Ethnicity\n
-  grouped by Employment Sector") +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "bottom"
-  )
+  ggtitle("Enhance/Detract from work vs. Employment Sector") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom")
 
+# Print the bar chart
 sector_vs_ethnicity_plot
 ```
 
@@ -727,37 +623,34 @@ ggsave("sector_vs_ethnicity_plot.png",
 )
 ```
 
-This chart shows that Asians dominate the healthcare and STEM/IT sectors of the survey participants. Asians occupy the least proportion of the Retail sector, and Black people the STEM/IT sector. Racial biases and hiring practices, but also immigration and education preferences may be possible reasons for the discrepency in the ethnicity proportion of respondents in each sector. White people are uniformly distributed among the four sectors, which may be a result of the majority of the respondents being White.
+The presented data reveals a significant overrepresentation of Asians in the healthcare and STEM/IT fields, while they are comparatively underrepresented in the retail sector. On the other hand, Black individuals are less prevalent in STEM/IT roles. The observed differences in ethnic proportions across the sectors may be attributed to various factors, including implicit biases in hiring practices, immigration trends, and education preferences. Additionally, the fact that white respondents are evenly distributed across all sectors may be a reflection of the majority of the survey participants being white. Overall, these findings highlight the ongoing need for greater diversity and equity in the workplace across all industries.
 \newpage
 
-## 4.8. SimilarTasks vs. Age
+## 4.9. SimilarTasks vs. Age
 
 ```{r similartasks-vs-age, message = FALSE, warning = FALSE}
-# Create a new data frame with only the columns we need
+# Create a new data frame with only the necessary columns
 similartasks_vs_age <- combined %>% select(SimilarTasks, Age)
 ```
 
 ```{r similartasks-vs-age-edit, message = FALSE, warning = FALSE, echo = FALSE}
-# Remove the Ages which say "DATA_EXPIRED" and "923"
+# Remove the rows which say "DATA_EXPIRED" and "923" in the Age column
 similartasks_vs_age <- similartasks_vs_age %>%
   filter(similartasks_vs_age$Age != "DATA_EXPIRED")
-similartasks_vs_age <- similartasks_vs_age %>%
-  filter(similartasks_vs_age$Age != "923")
-# Remove rows where Age is NA
-similartasks_vs_age <- similartasks_vs_age %>%
-  filter(!is.na(Age))
-# Remove rows where SimilarTasks is NA
-similartasks_vs_age <- similartasks_vs_age %>%
-  filter(!is.na(SimilarTasks))
+similartasks_vs_age <- similartasks_vs_age %>% filter(similartasks_vs_age$Age != "923")
+# Remove the rows where Age is NA
+similartasks_vs_age <- similartasks_vs_age %>% filter(!is.na(Age))
+# Remove the rows where SimilarTasks is NA
+similartasks_vs_age <- similartasks_vs_age %>% filter(!is.na(SimilarTasks))
 
-# Change age rows which say "79" and "80" to "73"
+# Replace rows which say "79" and "80" to "73" in the Age column
 similartasks_vs_age$Age[similartasks_vs_age$Age == "79"] <- "73"
 similartasks_vs_age$Age[similartasks_vs_age$Age == "80"] <- "73"
 
 # Change the rows which say "Can perform all tasks" to "All tasks",
-# "Can perform many tasks" to "Many tasks",
-# "Can perform only a few tasks" to "Few tasks",
-# "Cannot perform any tasks" to "No tasks"
+#   "Can perform many tasks" to "Many tasks",
+#   "Can perform only a few tasks" to "Few tasks",
+#   "Cannot perform any tasks" to "No tasks"
 similartasks_vs_age$SimilarTasks[
   similartasks_vs_age$SimilarTasks == "Can perform all tasks"
 ] <- "All tasks"
@@ -772,59 +665,41 @@ similartasks_vs_age$SimilarTasks[
 ] <- "No tasks"
 
 
-# Convert Age to numeric
+# Convert the Age column to numeric
 similartasks_vs_age$Age <- as.numeric(as.character(similartasks_vs_age$Age))
-# group ages by 5 years
-similartasks_vs_age$Age <- cut(similartasks_vs_age$Age,
-  breaks = seq(18, 80, by = 10)
-)
-# remove NA
-similartasks_vs_age <- similartasks_vs_age %>% filter(!is.na(Age))
+# Group the Age column by 5 years
+similartasks_vs_age$Age <- cut(similartasks_vs_age$Age, breaks = seq(18, 80, by = 10))
 
-# create a new dataframe with the proportion of respondents who think AI can enhance their work efficiency for each age group
+# Remove the rows where Age is NA
+similartasks_vs_age <- similartasks_vs_age %>% filter(!is.na(Age))
+# Remove the rows where SimilarTasks is NA
+similartasks_vs_age <- similartasks_vs_age %>% filter(!is.na(SimilarTasks))
+```
+
+```{r similartasks-vs-age-plot, message = FALSE, warning = FALSE}
+# For each Age group, calculate the proportion of respondents who
+#   think AI can do similar human tasks
 similartasks_vs_age <- similartasks_vs_age %>%
   group_by(Age, SimilarTasks) %>%
   summarize(count = n()) %>%
   mutate(prop = count / sum(count))
-```
 
-```{r similartasks-vs-age-plot, message = FALSE, warning = FALSE}
-# Visualize the proportion of respondents who think AI can
-# do similar tasks, based on age group, using a bar chart.
-# Show the number of respondents inside each bar.
-# make legend bottom. Wrap x axis labels without changing plot size.
-# order the bars as "Cannot perform any tasks", "Can perform only a few tasks",
-# "Can perform many tasks", "Can perform all tasks".
-# force the y axis to start at 0 and end at 1.
+# Create a bar chart to show the proportion of respondents who think AI
+#   can do similar human tasks by age group
 similartasks_vs_age_plot <- ggplot(
   similartasks_vs_age,
-  aes(
-    x = Age,
-    y = prop, fill = factor(SimilarTasks,
-      levels = c(
-        "No tasks", "Few tasks",
-        "Many tasks", "All tasks"
-      )
-    )
-  ),
+  aes(x = Age, y = prop, fill = factor(SimilarTasks,
+    levels = c("No tasks", "Few tasks", "Many tasks", "All tasks")
+  )),
   ylim = c(0, 1)
 ) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = count),
-    position = position_dodge(width = 1),
-    vjust = 1.5
-  ) +
-  labs(
-    x = "Age", y = "Proportion of Respondents",
-    fill = "Similar Tasks"
-  ) +
-  ggtitle("Proportion of Respondents Who Think AI Can\n
-  Do Similar Tasks by Age Group") +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "bottom"
-  )
+  geom_text(aes(label = count), position = position_dodge(width = 1), vjust = 1.5) +
+  labs(x = "Age", y = "Proportion of Respondents", fill = "Similar Tasks") +
+  ggtitle("Age vs. Similar Tasks") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom")
 
+# Print the bar chart
 similartasks_vs_age_plot
 ```
 
@@ -835,5 +710,5 @@ ggsave("similartasks_vs_age_plot.png",
 )
 ```
 
-This chart shows that older participants think AI can perform no tasks that humans can, while middle aged participants think that AI can perform many tasks. All age groups mostly and uniformly think that AI can perform few tasks that humans can. This is an interesting result, as it shows that the older generation is more skeptical of AI's capabilities, while the middle aged generation is more optimistic. This may be due to the fact that the older generation has less exposure to AI, and the middle aged generation has more exposure to AI. The younger generation is more skeptical of AI's capabilities, which may be due to the fact that they have grown up with AI, and have seen its limitations.
+This chart depicts a striking contrast between different age groups' perceptions of AI's capabilities. Specifically, the data shows that older participants are more skeptical of AI's potential and believe that it cannot perform any tasks that humans can. In contrast, middle-aged participants are more optimistic and believe that AI is capable of performing many tasks. Interestingly, all age groups are in agreement that AI can perform only a few tasks that humans can. This finding suggests that exposure to AI technology may be a key factor influencing one's perception of its capabilities. For instance, the older generation, which may have had less exposure to AI, is more skeptical, while the middle-aged generation, which may have more exposure, is more optimistic. On the other hand, the younger generation, who have grown up with AI, are also skeptical of its capabilities, likely because they have experienced its limitations firsthand.
 \newpage
